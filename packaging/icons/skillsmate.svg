@@ -1,24 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-  <!-- App icon: the monochrome glyph (skillsmate-glyph.svg) in white on a
-       near-black tile. Reads well on both light and dark docks/launchers. -->
-  <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2a2a2c"/>
-      <stop offset="1" stop-color="#121213"/>
-    </linearGradient>
-    <mask id="spark">
-      <rect width="64" height="64" fill="#fff"/>
-      <path d="M32 32.5 C32.9 38.4 34.6 40.1 40.5 41 C34.6 41.9 32.9 43.6 32 49.5 C31.1 43.6 29.4 41.9 23.5 41 C29.4 40.1 31.1 38.4 32 32.5 Z" fill="#000" transform="translate(32 42) scale(1.3) translate(-32 -41)"/>
-    </mask>
-  </defs>
-  <rect x="16" y="16" width="224" height="224" rx="52" fill="url(#tile)"/>
-  <!-- Hairline highlight so the tile edge stays visible on dark backgrounds. -->
-  <rect x="16.75" y="16.75" width="222.5" height="222.5" rx="51.25" fill="none"
-        stroke="#ffffff" stroke-opacity="0.12" stroke-width="1.5"/>
-  <!-- Glyph: 64-unit design scaled to 140px, centred. -->
-  <g transform="translate(58 58) scale(2.1875)" fill="#ffffff">
-    <rect x="19" y="9" width="26" height="5" rx="2.5" fill-opacity="0.55"/>
-    <rect x="12.5" y="17.5" width="39" height="5" rx="2.5" fill-opacity="0.78"/>
-    <rect x="6" y="26" width="52" height="32" rx="8" mask="url(#spark)"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- App icon for Linux and the window: the black glyph on a white tile with
+       Apple's macOS grid (824 px tile, 100 px margin). macOS uses AppIcon.icon. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#fff" stroke="#000" stroke-opacity="0.12" stroke-width="4"/>
+  <path fill="#000" transform="translate(512 512) scale(0.72) translate(-512 -512)" d="M356.982,150.46 L667.018,150.46 C687.377,150.46 703.882,166.965 703.882,187.324 L703.882,187.324 C703.882,207.684 687.377,224.188 667.018,224.188 L356.982,224.188 C336.623,224.188 320.118,207.684 320.118,187.324 L320.118,187.324 C320.118,166.965 336.623,150.46 356.982,150.46 Z M260.569,275.231 L763.431,275.231 C783.791,275.231 800.295,291.735 800.295,312.095 L800.295,312.095 C800.295,332.454 783.791,348.959 763.431,348.959 L260.569,348.959 C240.209,348.959 223.705,332.454 223.705,312.095 L223.705,312.095 C223.705,291.735 240.209,275.231 260.569,275.231 Z M246.39,400.946 L777.61,400.946 C842.864,400.946 895.764,453.846 895.764,519.1 L895.764,755.408 C895.764,820.663 842.864,873.562 777.61,873.562 L246.39,873.562 C181.136,873.562 128.236,820.663 128.236,755.408 L128.236,519.1 C128.236,453.846 181.136,400.946 246.39,400.946 Z M512,473.729 C494.702,587.157 461.997,619.956 348.475,637.254 C461.903,654.552 494.702,687.257 512,800.779 C529.298,687.351 562.003,654.552 675.525,637.254 C562.097,619.956 529.298,587.157 512,473.729 Z"/>
 </svg>

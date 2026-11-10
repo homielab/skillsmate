@@ -3,14 +3,14 @@
 #
 # Usage: packaging/macos/build-app.sh [path/to/skillsmate]
 #
-# Requires the Xcode command line tools (iconutil). The bundle is not signed:
+# The bundle is not signed:
 # packaging/macos/build-app-store.sh signs it for the Mac App Store.
 # BUILD_NUMBER sets CFBundleVersion (default: the version).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BIN="${1:-$ROOT/target/release/skillsmate}"
-ICONS="$ROOT/packaging/icons"
+ICON="$ROOT/packaging/macos/AppIcon"
 DIST="$ROOT/dist"
 APP="$DIST/SkillsMate.app"
 
@@ -25,19 +25,9 @@ rm -r "$APP" 2>/dev/null || true
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/skillsmate"
 
-# App icon from the rendered PNGs.
-ICONSET="$(mktemp -d)/SkillsMate.iconset"
-mkdir -p "$ICONSET"
-for size in 16 32 128 256 512; do
-    cp "$ICONS/skillsmate-$size.png" "$ICONSET/icon_${size}x${size}.png"
-done
-cp "$ICONS/skillsmate-32.png" "$ICONSET/icon_16x16@2x.png"
-cp "$ICONS/skillsmate-64.png" "$ICONSET/icon_32x32@2x.png"
-cp "$ICONS/skillsmate-256.png" "$ICONSET/icon_128x128@2x.png"
-cp "$ICONS/skillsmate-512.png" "$ICONSET/icon_256x256@2x.png"
-cp "$ICONS/skillsmate-1024.png" "$ICONSET/icon_512x512@2x.png"
-iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/SkillsMate.icns"
-rm -r "$(dirname "$ICONSET")"
+# App icon, compiled from packaging/macos/AppIcon.icon (see that folder's
+# README): Assets.car for macOS 26+, AppIcon.icns for older versions.
+cp "$ICON/Assets.car" "$ICON/AppIcon.icns" "$APP/Contents/Resources/"
 
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -48,7 +38,8 @@ cat > "$APP/Contents/Info.plist" <<EOF
     <key>CFBundleDisplayName</key><string>SkillsMate</string>
     <key>CFBundleIdentifier</key><string>${BUNDLE_ID:-com.homielab.SkillsMate}</string>
     <key>CFBundleExecutable</key><string>skillsmate</string>
-    <key>CFBundleIconFile</key><string>SkillsMate</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
+    <key>CFBundleIconName</key><string>AppIcon</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>${VERSION}</string>
     <key>CFBundleVersion</key><string>${BUILD_NUMBER:-$VERSION}</string>
