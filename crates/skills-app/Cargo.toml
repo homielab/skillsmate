@@ -21,6 +21,14 @@ webbrowser = "1"
 # Title bar styling on macOS (see `main.rs`).
 [target.'cfg(target_os = "macos")'.dependencies]
 slint = { workspace = true, features = ["unstable-winit-030"] }
+# Home folder access in the sandboxed Mac App Store build (`home_access.rs`).
+objc2 = { version = "0.6", optional = true }
+objc2-foundation = { version = "0.3", optional = true, default-features = false, features = ["std", "NSData", "NSError", "NSString", "NSURL", "NSArray"] }
+objc2-app-kit = { version = "0.3", optional = true, default-features = false, features = ["std", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSWindow", "NSResponder", "NSApplication", "NSRunningApplication"] }
+
+[features]
+# Mac App Store build: sandboxed home folder access, no self-update check.
+app-store = ["dep:objc2", "dep:objc2-foundation", "dep:objc2-app-kit"]
 
 [build-dependencies]
 slint-build.workspace = true

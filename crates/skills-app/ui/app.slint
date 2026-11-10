@@ -3,7 +3,7 @@ import { Theme, Logo, NavItem, NavGroup, Card, Section, StatTile, BarList, BarRo
 import { FindingRow, UpdateRow, AgentUse, DiffRow, MdBlock, FileRow, Detail, RecRow } from "types.slint";
 import { HealthPage } from "health.slint";
 import { DetailPage } from "detail.slint";
-import { ConfirmDialog, Toast } from "overlays.slint";
+import { ConfirmDialog, Toast, AccessScreen } from "overlays.slint";
 
 export { BarRow, FindingRow, UpdateRow, AgentUse, DiffRow, MdBlock, FileRow, Detail, RecRow }
 
@@ -936,6 +936,14 @@ export component AppWindow inherits Window {
     in property <string> app-update-url;
     in property <bool> app-update-checking;
     callback check-app-update();
+    // False in the Mac App Store build, which the App Store updates.
+    in property <bool> show-app-update: true;
+
+    // Home folder access (sandboxed Mac App Store build).
+    in property <bool> needs-access;
+    in property <string> access-home;
+    in property <string> access-error;
+    callback grant-access();
 
     // Confirmation dialog
     in property <bool> dialog-open;
@@ -1071,7 +1079,7 @@ export component AppWindow inherits Window {
                     color: Theme.muted;
                     wrap: word-wrap;
                 }
-                HorizontalLayout {
+                if root.show-app-update: HorizontalLayout {
                     alignment: start;
                     spacing: 6px;
                     if root.app-update-url != "": Button {
@@ -1228,5 +1236,13 @@ export component AppWindow inherits Window {
         destructive: root.dialog-destructive;
         accepted => { root.dialog-accepted(); }
         dismissed => { root.dialog-dismissed(); }
+    }
+
+    if root.needs-access: AccessScreen {
+        width: root.width;
+        height: root.height;
+        home: root.access-home;
+        error: root.access-error;
+        grant => { root.grant-access(); }
     }
 }

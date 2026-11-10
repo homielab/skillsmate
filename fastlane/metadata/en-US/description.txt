@@ -1,0 +1,37 @@
+SkillsMate is a home for the skills your AI coding agents use. See what's installed, find what's broken, and add new skills from skills.sh, without touching the command line.
+
+Skills are folders of instructions (a SKILL.md file plus scripts and references) that coding agents load to get better at specific tasks. They live in many places: one folder per agent, links between them, and a shared copy in ~/.agents/skills. SkillsMate brings them all into one window.
+
+OVERVIEW
+• How many skills you have, which agents use them, and how much disk they take
+• Skills per agent and top sources at a glance
+• A "needs attention" list so problems don't hide
+
+HEALTH CHECKS
+• Finds broken links, out-of-date copies and skills no agent can see
+• Checks every SKILL.md against the Agent Skills specification
+• Flags names and descriptions agents can't use well, oversized files and bundled scripts
+• Shows how many tokens your skills add to every agent session
+• Fixes broken links and drifted copies in one click, or removes all broken links at once
+
+DISCOVER AND INSTALL
+• Search the skills.sh directory, browse official skills from 100+ companies and curated topics
+• Recommendations based on the skills you already use
+• Installs land in the shared skills folder and are linked into each agent, exactly like the skills command-line tool, so you can use both
+
+UPDATES AND AUDITS
+• Compares your skills with the versions on skills.sh, file by file, and shows exactly what changed
+• Tells your own edits apart from upstream updates
+• Checks installed skills against skills.sh's security audit partners
+
+NOTHING IS LOST
+• Every remove, update, edit and fix moves the old version into a backup first
+• Undo restores it with one click
+
+PRIVATE BY DESIGN
+• No account, no analytics, no tracking
+• Online checks run only when you ask
+
+Works with 70+ coding agents, including Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, OpenCode, Windsurf and more.
+
+SkillsMate is open source under the MIT License. It is an independent project, not affiliated with skills.sh or Vercel.

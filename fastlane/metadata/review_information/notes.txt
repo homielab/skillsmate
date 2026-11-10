@@ -1,0 +1,10 @@
+SkillsMate manages "skills": folders of instructions that AI coding agents (such as Claude Code or Cursor) load from hidden folders in the user's home folder, for example ~/.claude/skills and ~/.agents/skills.
+
+On first launch the app asks the user to choose their home folder in a standard open panel. It keeps that access with a security-scoped bookmark and only reads and changes those agents' skill folders and the skills lockfile (~/.agents/.skill-lock.json). Every change is backed up first and can be undone.
+
+How to review without any coding agents installed:
+1. Launch the app and click "Choose Home Folder…", then "Allow Access" (the panel opens on the home folder).
+2. Overview, Installed and Health will be empty, which is expected.
+3. Open Discover and search for "pdf", or open Official or Topics. Install any skill to see it appear in Installed, then remove it from its page; Undo restores it.
+
+The app has no account or login and collects no data.

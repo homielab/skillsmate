@@ -198,7 +198,11 @@ pub(crate) fn plural(n: usize, one: &str, many: &str) -> String {
 }
 
 /// The GitHub repo SkillsMate releases are published to, from Cargo.toml.
+/// `None` in the Mac App Store build, which the App Store updates.
 pub(crate) fn release_repo() -> Option<String> {
+    if cfg!(feature = "app-store") {
+        return None;
+    }
     skills_core::app_update::github_repo(env!("CARGO_PKG_REPOSITORY"))
         .filter(|r| !r.starts_with("your-org/"))
 }

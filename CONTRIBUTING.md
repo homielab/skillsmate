@@ -56,6 +56,20 @@ python3 tools/gen_agents.py /tmp/skills/src/agents.ts "$(git -C /tmp/skills rev-
 2. Tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
 3. The Release workflow tests, builds the Linux `.deb` and AppImage and the macOS app, and publishes them with checksums.
 
+### Mac App Store
+
+The App Store build is sandboxed (`--features app-store`): it asks for the home folder on first launch and has no update check. It's signed by Xcode's automatic signing with an App Store Connect API key, so no certificates are needed locally.
+
+Put the key in `fastlane/.env` (git-ignored): `ASC_KEY_ID`, `ASC_ISSUER_ID`, and `ASC_KEY_PATH` if the `.p8` file isn't in `~/.appstoreconnect/private_keys/`. Then:
+
+```sh
+fastlane mac beta      # build the universal .pkg and upload it (build number = latest + 1)
+fastlane mac listing   # upload name, description, keywords, URLs and screenshots from fastlane/
+fastlane mac submit    # submit the latest uploaded build for review
+```
+
+Store screenshots are 1440×900: `SKILLSMATE_SNAPSHOT_SIZE=1440x900 SKILLSMATE_SNAPSHOT=<dir> cargo run -p skills-app --features app-store`.
+
 ## License
 
 By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE).

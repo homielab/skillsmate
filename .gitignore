@@ -3,3 +3,6 @@
 .DS_Store
 /dist
 /.appimage-tools
+/fastlane/.env
+/fastlane/report.xml
+/fastlane/README.md

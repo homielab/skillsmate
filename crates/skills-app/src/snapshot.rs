@@ -1,6 +1,8 @@
 //! Developer tool: `SKILLSMATE_SNAPSHOT=<dir>` opens each page in turn, saves
 //! the window as `<dir>/<page>.bmp`, then quits. Used to check the UI on
-//! machines where screen capture isn't available (CI, remote sessions).
+//! machines where screen capture isn't available (CI, remote sessions), and
+//! for store screenshots: `SKILLSMATE_SNAPSHOT_SIZE=1440x900` sets the window
+//! size in logical pixels.
 
 use std::{
     cell::Cell,
@@ -32,6 +34,15 @@ pub fn start(ui: &AppWindow, dir: PathBuf) {
     if let Err(err) = std::fs::create_dir_all(&dir) {
         eprintln!("snapshot: can't create {}: {err}", dir.display());
         return;
+    }
+    if let Some((w, h)) = std::env::var("SKILLSMATE_SNAPSHOT_SIZE")
+        .ok()
+        .and_then(|v| {
+            let (w, h) = v.split_once('x')?;
+            Some((w.trim().parse::<f32>().ok()?, h.trim().parse::<f32>().ok()?))
+        })
+    {
+        ui.window().set_size(slint::LogicalSize::new(w, h));
     }
     let step = Rc::new(Cell::new(0usize));
     let timer = Rc::new(Timer::default());

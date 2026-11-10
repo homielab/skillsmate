@@ -1,0 +1,95 @@
+# Mac App Store lanes. Needs an App Store Connect API key in the environment:
+# ASC_KEY_ID, ASC_ISSUER_ID and optionally ASC_KEY_PATH (default
+# ~/.appstoreconnect/private_keys/AuthKey_<id>.p8). Put them in fastlane/.env
+# (git-ignored) or export them.
+#
+#   fastlane mac beta      build and upload to App Store Connect (TestFlight);
+#                          pkg:<path> uploads an already built package instead
+#   fastlane mac listing   upload name, description, keywords, URLs and screenshots
+#   fastlane mac submit    submit the latest uploaded build for review
+
+require "shellwords"
+
+# altool prints non-ASCII text (curly quotes); without a UTF-8 locale fastlane
+# fails to read it and reports a failed upload that actually went through.
+Encoding.default_external = Encoding::UTF_8
+
+default_platform(:mac)
+
+ROOT = File.expand_path("..", __dir__)
+VERSION = File.read(File.join(ROOT, "Cargo.toml"))[/^version = "(.*)"/, 1]
+
+platform :mac do
+  before_all do
+    ENV["FASTLANE_HIDE_CHANGELOG"] = "1"
+    ENV["FASTLANE_SKIP_UPDATE_CHECK"] = "1"
+  end
+
+  desc "Build the sandboxed app and upload it to App Store Connect"
+  lane :beta do |options|
+    pkg = options[:pkg] && File.expand_path(options[:pkg], ROOT)
+    if pkg
+      # Each upload needs a new build number; a second upload of the same one
+      # is rejected by Apple (ITMS-90189).
+      number = File.basename(pkg)[/-(\d+)\.pkg\z/, 1].to_i
+      latest = latest_testflight_build_number(api_key: api_key, platform: "osx", version: VERSION, initial_build_number: 0)
+      UI.user_error!("Build #{number} of #{VERSION} is already on App Store Connect (latest: #{latest}). Build a new one with `fastlane mac beta`.") if number <= latest
+    else
+      number = latest_testflight_build_number(api_key: api_key, platform: "osx", version: VERSION, initial_build_number: 0) + 1
+      sh(
+        { "BUILD_NUMBER" => number.to_s, "ASC_KEY_PATH" => key_path },
+        File.join(ROOT, "packaging/macos/build-app-store.sh")
+      )
+      pkg = File.join(ROOT, "dist/SkillsMate-#{VERSION}-#{number}.pkg")
+    end
+    upload_to_testflight(
+      api_key: api_key,
+      app_platform: "osx",
+      pkg: pkg,
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Upload the App Store listing (metadata and screenshots), without a build or review"
+  lane :listing do
+    upload_to_app_store(
+      api_key: api_key,
+      platform: "osx",
+      app_version: VERSION,
+      skip_binary_upload: true,
+      overwrite_screenshots: true,
+      submit_for_review: false,
+      run_precheck_before_submit: false,
+      force: true
+    )
+  end
+
+  desc "Submit the latest uploaded build of this version for review"
+  lane :submit do |options|
+    number = options[:build] || latest_testflight_build_number(api_key: api_key, platform: "osx", version: VERSION)
+    upload_to_app_store(
+      api_key: api_key,
+      platform: "osx",
+      app_version: VERSION,
+      build_number: number.to_s,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      submit_for_review: true,
+      automatic_release: true,
+      submission_information: { add_id_info_uses_idfa: false, export_compliance_uses_encryption: false },
+      run_precheck_before_submit: false,
+      force: true
+    )
+  end
+end
+
+def key_path
+  ENV["ASC_KEY_PATH"] || File.expand_path("~/.appstoreconnect/private_keys/AuthKey_#{ENV['ASC_KEY_ID']}.p8")
+end
+
+def api_key
+  @api_key ||= begin
+    UI.user_error!("Set ASC_KEY_ID and ASC_ISSUER_ID (App Store Connect API key).") unless ENV["ASC_KEY_ID"] && ENV["ASC_ISSUER_ID"]
+    app_store_connect_api_key(key_id: ENV["ASC_KEY_ID"], issuer_id: ENV["ASC_ISSUER_ID"], key_filepath: key_path, duration: 1200)
+  end
+end
