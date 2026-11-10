@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Single-colour glyph: a stack of skill cards with a four-point spark
+       knocked out of the front card. Used in the app UI (tinted to the theme's foreground)
+       and as the Linux symbolic icon. Keep it one colour + transparency. -->
+  <defs>
+    <mask id="spark">
+      <rect width="64" height="64" fill="#fff"/>
+      <path d="M32 32.5 C32.9 38.4 34.6 40.1 40.5 41 C34.6 41.9 32.9 43.6 32 49.5 C31.1 43.6 29.4 41.9 23.5 41 C29.4 40.1 31.1 38.4 32 32.5 Z" fill="#000" transform="translate(32 42) scale(1.3) translate(-32 -41)"/>
+    </mask>
+  </defs>
+  <g fill="#000">
+    <rect x="19" y="9" width="26" height="5" rx="2.5"/>
+    <rect x="12.5" y="17.5" width="39" height="5" rx="2.5"/>
+    <rect x="6" y="26" width="52" height="32" rx="8" mask="url(#spark)"/>
+  </g>
+</svg>

@@ -1,0 +1,1232 @@
+import { Button, ListView, Palette, ScrollView, Spinner } from "std-widgets.slint";
+import { Theme, Logo, NavItem, NavGroup, Card, Section, StatTile, BarList, BarRow, PageHeader, SearchField, EmptyState, StatusDot, StatusMark, Pill } from "components.slint";
+import { FindingRow, UpdateRow, AgentUse, DiffRow, MdBlock, FileRow, Detail, RecRow } from "types.slint";
+import { HealthPage } from "health.slint";
+import { DetailPage } from "detail.slint";
+import { ConfirmDialog, Toast } from "overlays.slint";
+
+export { BarRow, FindingRow, UpdateRow, AgentUse, DiffRow, MdBlock, FileRow, Detail, RecRow }
+
+export enum Page { overview, installed, health, audits, discover, official, topics, agents, detail }
+
+export struct SkillRow {
+    key: string,
+    name: string,
+    description: string,
+    agents: string,
+    source: string,
+    meta: string,
+    // "Update available" etc., "" when unknown or up to date.
+    update: string,
+}
+
+export struct SearchRow {
+    name: string,
+    source: string,
+    slug: string,
+    installs: string,
+    url: string,
+    installed: bool,
+    installable: bool,
+}
+
+export struct AgentRow {
+    name: string,
+    id: string,
+    detected: bool,
+    universal: bool,
+    global-dir: string,
+    skills: string,
+}
+
+export struct RecentRow {
+    name: string,
+    source: string,
+    when: string,
+}
+
+export struct AttentionRow {
+    text: string,
+    // 0 fine, 1 warning, 2 failure, 3 neutral (StatusMark kinds)
+    kind: int,
+}
+
+export struct Overview {
+    skills: string,
+    skills-note: string,
+    agents: string,
+    agents-note: string,
+    disk: string,
+    disk-note: string,
+    updated: string,
+    updated-note: string,
+    per-agent: [BarRow],
+    per-agent-note: string,
+    per-source: [BarRow],
+    per-source-note: string,
+    recent: [RecentRow],
+    attention: [AttentionRow],
+}
+
+export struct AuditRow {
+    name: string,
+    source: string,
+    // StatusMark kind
+    kind: int,
+    label: string,
+    detail: string,
+    url: string,
+}
+
+export struct OfficialRow {
+    owner: string,
+    stats: string,
+    top: string,
+    installed: string,
+    url: string,
+}
+
+export struct TopicRow {
+    slug: string,
+    title: string,
+    description: string,
+    count: string,
+}
+
+export struct TopicSkillRow {
+    name: string,
+    description: string,
+    source: string,
+    slug: string,
+    installed: bool,
+    installable: bool,
+    url: string,
+}
+
+component OverviewPage inherits ScrollView {
+    in property <Overview> data;
+    in property <bool> loading;
+    callback refresh();
+    callback go-installed();
+    callback go-audits();
+
+    property <bool> narrow: self.width < 760px;
+
+    VerticalLayout {
+        padding: Theme.page-padding;
+        alignment: start;
+        spacing: Theme.gap + 4px;
+
+        PageHeader {
+            title: "Overview";
+            subtitle: "Global skills on this computer";
+            if root.loading: Spinner { indeterminate: true; width: 20px; height: 20px; }
+            Button {
+                text: "Refresh";
+                enabled: !root.loading;
+                clicked => { root.refresh(); }
+            }
+        }
+
+        if !root.narrow: HorizontalLayout {
+            spacing: Theme.gap;
+            StatTile { label: "Skills installed"; value: root.data.skills; note: root.data.skills-note; }
+            StatTile { label: "Agents using skills"; value: root.data.agents; note: root.data.agents-note; }
+            StatTile { label: "Disk used"; value: root.data.disk; note: root.data.disk-note; }
+            StatTile { label: "Last updated"; value: root.data.updated; note: root.data.updated-note; }
+        }
+        if root.narrow: VerticalLayout {
+            spacing: Theme.gap;
+            HorizontalLayout {
+                spacing: Theme.gap;
+                StatTile { label: "Skills installed"; value: root.data.skills; note: root.data.skills-note; }
+                StatTile { label: "Agents using skills"; value: root.data.agents; note: root.data.agents-note; }
+            }
+            HorizontalLayout {
+                spacing: Theme.gap;
+                StatTile { label: "Disk used"; value: root.data.disk; note: root.data.disk-note; }
+                StatTile { label: "Last updated"; value: root.data.updated; note: root.data.updated-note; }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: Theme.gap;
+            alignment: stretch;
+            Section {
+                horizontal-stretch: 1;
+                preferred-width: 1px;
+                title: "Skills per agent";
+                note: root.data.per-agent-note;
+                BarList {
+                    rows: root.data.per-agent;
+                    empty-text: "No detected agent can see your skills yet.";
+                }
+            }
+            Section {
+                horizontal-stretch: 1;
+                preferred-width: 1px;
+                title: "Top sources";
+                note: root.data.per-source-note;
+                BarList {
+                    rows: root.data.per-source;
+                    empty-text: "No skills tracked by skills.sh yet.";
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: Theme.gap;
+            alignment: stretch;
+            Section {
+                horizontal-stretch: 1;
+                preferred-width: 1px;
+                title: "Needs attention";
+                for row in root.data.attention: HorizontalLayout {
+                    spacing: 10px;
+                    StatusMark { kind: row.kind; y: (parent.height - self.height) / 2; }
+                    Text {
+                        text: row.text;
+                        color: Theme.text;
+                        wrap: word-wrap;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    Button { text: "Check security audits"; clicked => { root.go-audits(); } }
+                }
+            }
+            Section {
+                horizontal-stretch: 1;
+                preferred-width: 1px;
+                title: "Recently updated";
+                if root.data.recent.length == 0: Text {
+                    text: "Skills installed with the skills CLI show their update history here.";
+                    color: Theme.muted;
+                    wrap: word-wrap;
+                }
+                for row in root.data.recent: HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        Text { text: row.name; color: Theme.text; font-weight: 600; overflow: elide; }
+                        Text { text: row.source; color: Theme.muted; font-size: 12px; overflow: elide; }
+                    }
+                    Text { text: row.when; color: Theme.muted; font-size: 12px; vertical-alignment: center; }
+                }
+                HorizontalLayout {
+                    alignment: start;
+                    Button { text: "View all installed"; clicked => { root.go-installed(); } }
+                }
+            }
+        }
+    }
+}
+
+component InstalledPage inherits VerticalLayout {
+    in property <[SkillRow]> skills;
+    in property <bool> loading;
+    in property <string> status;
+    in-out property <string> filter;
+    callback refresh();
+    callback filter-edited(string);
+    callback open-skill(string);
+
+    padding: Theme.page-padding;
+    spacing: Theme.gap;
+
+    PageHeader {
+        title: "Installed";
+        subtitle: root.status;
+        if root.loading: Spinner { indeterminate: true; width: 20px; height: 20px; }
+        Button {
+            text: "Refresh";
+            enabled: !root.loading;
+            clicked => { root.refresh(); }
+        }
+    }
+
+    SearchField {
+        placeholder-text: "Filter installed skills";
+        text <=> root.filter;
+        edited(text) => { root.filter-edited(text); }
+    }
+
+    // Keeps the page full height while nothing else is shown; without it the
+    // layout's max height collapses and the window shrinks to fit.
+    if root.skills.length == 0 && root.loading: Rectangle { vertical-stretch: 1; }
+
+    if root.skills.length == 0 && !root.loading: EmptyState {
+        vertical-stretch: 1;
+        title: root.filter == "" ? "No skills installed yet" : "No matches";
+        message: root.filter == "" ? "Find skills on the Discover, Official and Topics pages, or install them with the skills CLI." : "Try a different filter.";
+    }
+
+    if root.skills.length > 0: ListView {
+        vertical-stretch: 1;
+        for skill in root.skills: VerticalLayout {
+            padding-bottom: 8px;
+            Card {
+                card-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.open-skill(skill.key); }
+                }
+                background: card-touch.has-hover ? Theme.subtle-fill : Theme.card;
+                accessible-role: button;
+                accessible-label: skill.name;
+                accessible-action-default => { root.open-skill(skill.key); }
+                VerticalLayout {
+                    padding: 14px;
+                    spacing: 4px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: skill.name;
+                            font-size: 15px;
+                            font-weight: 600;
+                            color: Theme.text;
+                            overflow: elide;
+                        }
+                        if skill.update != "": Pill { text: skill.update; y: (parent.height - self.height) / 2; }
+                        Rectangle { horizontal-stretch: 1; }
+                        Text {
+                            text: skill.source;
+                            color: Theme.muted;
+                            font-size: 12px;
+                            overflow: elide;
+                            vertical-alignment: center;
+                        }
+                    }
+                    Text {
+                        text: skill.description;
+                        wrap: word-wrap;
+                        overflow: elide;
+                        max-height: 34px;
+                        color: Theme.body;
+                    }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Text {
+                            text: skill.agents;
+                            color: Theme.muted;
+                            font-size: 12px;
+                            overflow: elide;
+                            horizontal-stretch: 1;
+                        }
+                        Text {
+                            text: skill.meta;
+                            color: Theme.muted;
+                            font-size: 12px;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+component AuditsPage inherits VerticalLayout {
+    in property <[AuditRow]> rows;
+    in property <bool> checking;
+    in property <string> status;
+    callback check();
+    callback open-url(string);
+
+    padding: Theme.page-padding;
+    spacing: Theme.gap;
+
+    PageHeader {
+        title: "Security audits";
+        subtitle: root.status;
+        if root.checking: Spinner { indeterminate: true; width: 20px; height: 20px; }
+        Button {
+            text: root.rows.length == 0 ? "Check my skills" : "Check again";
+            enabled: !root.checking;
+            clicked => { root.check(); }
+        }
+        Button {
+            text: "All audits";
+            clicked => { root.open-url("https://www.skills.sh/audits"); }
+        }
+    }
+
+    if root.rows.length == 0 && root.checking: Rectangle { vertical-stretch: 1; }
+
+    if root.rows.length == 0 && !root.checking: EmptyState {
+        vertical-stretch: 1;
+        title: "Check your skills for security issues";
+        message: "skills.sh partners (Gen Agent Trust Hub, Socket, Snyk and others) audit published skills. Checking sends the names and sources of your installed skills to skills.sh.";
+    }
+
+    if root.rows.length > 0: ListView {
+        vertical-stretch: 1;
+        for row in root.rows: VerticalLayout {
+            padding-bottom: 8px;
+            Card {
+                HorizontalLayout {
+                    padding: 14px;
+                    spacing: 12px;
+                    StatusMark { kind: row.kind; y: 16px; }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 3px;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text {
+                                text: row.name;
+                                font-weight: 600;
+                                color: Theme.text;
+                                overflow: elide;
+                                horizontal-stretch: 1;
+                            }
+                            Text {
+                                text: row.label;
+                                font-weight: 600;
+                                color: Theme.text;
+                            }
+                        }
+                        Text { text: row.source; color: Theme.muted; font-size: 12px; overflow: elide; }
+                        if row.detail != "": Text {
+                            text: row.detail;
+                            color: Theme.body;
+                            wrap: word-wrap;
+                        }
+                    }
+                    if row.url != "": VerticalLayout {
+                        alignment: center;
+                        Button {
+                            text: "Details";
+                            clicked => { root.open-url(row.url); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+component InstallButton inherits VerticalLayout {
+    in property <bool> installed;
+    in property <bool> installable;
+    callback install();
+    alignment: center;
+    if root.installed: Pill { text: "Installed"; }
+    if !root.installed && root.installable: Button {
+        text: "Install";
+        clicked => { root.install(); }
+    }
+}
+
+component DiscoverPage inherits VerticalLayout {
+    in property <[SearchRow]> results;
+    in property <bool> searching;
+    in property <string> status;
+    in-out property <string> query;
+    in property <[RecRow]> recs;
+    in property <bool> recs-loading;
+    in property <string> recs-status;
+    callback query-edited(string);
+    callback open-url(string);
+    callback install(string, string);
+
+    padding: Theme.page-padding;
+    spacing: Theme.gap;
+
+    PageHeader {
+        title: "Discover";
+        subtitle: "Search the skills.sh directory";
+        if root.searching: Spinner { indeterminate: true; width: 20px; height: 20px; }
+    }
+
+    SearchField {
+        placeholder-text: "Search skills, e.g. \"react\" or \"pdf\"";
+        text <=> root.query;
+        edited(text) => { root.query-edited(text); }
+    }
+
+    if root.status != "": Text {
+        text: root.status;
+        color: Theme.muted;
+        wrap: word-wrap;
+    }
+
+    if root.results.length == 0 && (root.searching || root.status != ""): Rectangle { vertical-stretch: 1; }
+
+    // Recommendations while there's no search.
+    if root.results.length == 0 && !root.searching && root.status == "": HorizontalLayout {
+        spacing: 8px;
+        Text { text: "Recommended for you"; font-size: 15px; font-weight: 600; color: Theme.text; }
+        if root.recs-loading: Spinner { indeterminate: true; width: 16px; height: 16px; }
+        Text { text: root.recs-status; color: Theme.muted; font-size: 12px; vertical-alignment: center; horizontal-stretch: 1; }
+    }
+    if root.results.length == 0 && !root.searching && root.status == "": ListView {
+        vertical-stretch: 1;
+        for rec in root.recs: VerticalLayout {
+            padding-bottom: 8px;
+            Card {
+                HorizontalLayout {
+                    padding: 12px;
+                    padding-left: 14px;
+                    spacing: 12px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 2px;
+                        Text { text: rec.name; font-weight: 600; color: Theme.text; overflow: elide; }
+                        Text { text: rec.reason; color: Theme.body; overflow: elide; }
+                        Text { text: rec.source; color: Theme.muted; font-size: 12px; overflow: elide; }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        Button { text: "View"; clicked => { root.open-url(rec.url); } }
+                    }
+                    InstallButton {
+                        installed: false;
+                        installable: true;
+                        install => { root.install(rec.source, rec.slug); }
+                    }
+                }
+            }
+        }
+    }
+
+    if root.results.length > 0: ListView {
+        vertical-stretch: 1;
+        for hit in root.results: VerticalLayout {
+            padding-bottom: 8px;
+            Card {
+                HorizontalLayout {
+                    padding: 12px;
+                    padding-left: 14px;
+                    spacing: 12px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 2px;
+                        Text {
+                            text: hit.name;
+                            font-weight: 600;
+                            color: Theme.text;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: hit.source + (hit.installs != "" ? "  ·  " + hit.installs : "");
+                            color: Theme.muted;
+                            font-size: 12px;
+                            overflow: elide;
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        Button {
+                            text: "View";
+                            clicked => { root.open-url(hit.url); }
+                        }
+                    }
+                    InstallButton {
+                        installed: hit.installed;
+                        installable: hit.installable;
+                        install => { root.install(hit.source, hit.slug); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+component OfficialPage inherits VerticalLayout {
+    in property <[OfficialRow]> rows;
+    in property <bool> loading;
+    in property <string> status;
+    in-out property <string> filter;
+    callback filter-edited(string);
+    callback reload();
+    callback open-url(string);
+
+    padding: Theme.page-padding;
+    spacing: Theme.gap;
+
+    PageHeader {
+        title: "Official";
+        subtitle: root.status;
+        if root.loading: Spinner { indeterminate: true; width: 20px; height: 20px; }
+        Button {
+            text: "Reload";
+            enabled: !root.loading;
+            clicked => { root.reload(); }
+        }
+    }
+
+    SearchField {
+        placeholder-text: "Filter by company or skill";
+        text <=> root.filter;
+        edited(text) => { root.filter-edited(text); }
+    }
+
+    if root.rows.length == 0 && root.loading: Rectangle { vertical-stretch: 1; }
+
+    if root.rows.length == 0 && !root.loading: EmptyState {
+        vertical-stretch: 1;
+        title: root.filter == "" ? "Official skills" : "No matches";
+        message: root.filter == "" ? "Skills published by the companies that build the technology." : "Try a different filter.";
+    }
+
+    if root.rows.length > 0: ListView {
+        vertical-stretch: 1;
+        for row in root.rows: VerticalLayout {
+            padding-bottom: 8px;
+            Card {
+                HorizontalLayout {
+                    padding: 12px;
+                    padding-left: 14px;
+                    spacing: 12px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 2px;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text {
+                                text: row.owner;
+                                font-size: 15px;
+                                font-weight: 600;
+                                color: Theme.text;
+                                overflow: elide;
+                            }
+                            if row.installed != "": Pill { text: row.installed; y: (parent.height - self.height) / 2; }
+                            Rectangle { horizontal-stretch: 1; }
+                        }
+                        Text { text: row.stats; color: Theme.muted; font-size: 12px; overflow: elide; }
+                        Text { text: row.top; color: Theme.body; overflow: elide; }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        Button {
+                            text: "View";
+                            clicked => { root.open-url(row.url); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+component TopicsPage inherits VerticalLayout {
+    in property <[TopicRow]> topics;
+    in property <bool> loading;
+    in property <string> status;
+    in property <string> open-title;
+    in property <string> open-description;
+    in property <string> open-slug;
+    in property <[TopicSkillRow]> open-skills;
+    callback open-topic(string);
+    callback close-topic();
+    callback reload();
+    callback open-url(string);
+    callback install(string, string);
+
+    padding: Theme.page-padding;
+    spacing: Theme.gap;
+
+    if root.open-slug == "": PageHeader {
+        title: "Topics";
+        subtitle: root.status;
+        if root.loading: Spinner { indeterminate: true; width: 20px; height: 20px; }
+        Button {
+            text: "Reload";
+            enabled: !root.loading;
+            clicked => { root.reload(); }
+        }
+    }
+
+    if root.open-slug != "": HorizontalLayout {
+        spacing: Theme.gap;
+        Button {
+            text: "‹ Topics";
+            clicked => { root.close-topic(); }
+        }
+        PageHeader {
+            horizontal-stretch: 1;
+            title: root.open-title;
+            subtitle: root.status;
+            if root.loading: Spinner { indeterminate: true; width: 20px; height: 20px; }
+            Button {
+                text: "Open on skills.sh";
+                clicked => { root.open-url("https://www.skills.sh/topic/" + root.open-slug); }
+            }
+        }
+    }
+
+    if root.open-slug != "" && root.open-description != "": Text {
+        text: root.open-description;
+        color: Theme.muted;
+        wrap: word-wrap;
+    }
+
+    // Topic list
+    if root.open-slug == "" && root.topics.length > 0: ListView {
+        vertical-stretch: 1;
+        for topic in root.topics: VerticalLayout {
+            padding-bottom: 8px;
+            Card {
+                touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.open-topic(topic.slug); }
+                }
+                background: touch.has-hover ? Theme.subtle-fill : Theme.card;
+                accessible-role: button;
+                accessible-label: topic.title;
+                accessible-action-default => { root.open-topic(topic.slug); }
+                HorizontalLayout {
+                    padding: 14px;
+                    spacing: 12px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 3px;
+                        Text { text: topic.title; font-size: 15px; font-weight: 600; color: Theme.text; }
+                        Text { text: topic.description; color: Theme.muted; wrap: word-wrap; }
+                    }
+                    Text {
+                        text: topic.count;
+                        color: Theme.muted;
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: "›";
+                        font-size: 18px;
+                        color: Theme.muted;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+
+    // Skills in the open topic
+    if root.open-slug != "": ListView {
+        vertical-stretch: 1;
+        for skill in root.open-skills: VerticalLayout {
+            padding-bottom: 8px;
+            Card {
+                HorizontalLayout {
+                    padding: 12px;
+                    padding-left: 14px;
+                    spacing: 12px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 2px;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text {
+                                text: skill.name;
+                                font-weight: 600;
+                                color: Theme.text;
+                                overflow: elide;
+                            }
+                            if skill.installed: Pill { text: "Installed"; y: (parent.height - self.height) / 2; }
+                            Rectangle { horizontal-stretch: 1; }
+                        }
+                        Text { text: skill.description; color: Theme.body; wrap: word-wrap; }
+                        Text { text: skill.source; color: Theme.muted; font-size: 12px; overflow: elide; }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        Button {
+                            text: "View";
+                            clicked => { root.open-url(skill.url); }
+                        }
+                    }
+                    if !skill.installed: InstallButton {
+                        installed: false;
+                        installable: skill.installable;
+                        install => { root.install(skill.source, skill.slug); }
+                    }
+                }
+            }
+        }
+    }
+
+    if root.open-slug == "" && root.topics.length == 0 && root.loading: Rectangle { vertical-stretch: 1; }
+
+    if root.open-slug == "" && root.topics.length == 0 && !root.loading: EmptyState {
+        vertical-stretch: 1;
+        title: "Topics";
+        message: "Curated collections of skills by domain.";
+    }
+}
+
+component AgentsPage inherits VerticalLayout {
+    in property <[AgentRow]> agents;
+    in property <string> status;
+
+    padding: Theme.page-padding;
+    spacing: Theme.gap;
+
+    PageHeader {
+        title: "Agents";
+        subtitle: root.status;
+    }
+
+    ListView {
+        vertical-stretch: 1;
+        for agent in root.agents: Rectangle {
+            height: 48px;
+            border-radius: 6px;
+            background: touch.has-hover ? Theme.subtle-fill : transparent;
+            touch := TouchArea {}
+            HorizontalLayout {
+                padding-left: 10px;
+                padding-right: 10px;
+                spacing: 10px;
+                StatusDot { on: agent.detected; y: (parent.height - self.height) / 2; }
+                VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 1;
+                    Text {
+                        text: agent.name + (agent.universal ? "  ·  reads .agents/skills" : "");
+                        color: Theme.text;
+                        font-weight: agent.detected ? 600 : 400;
+                        overflow: elide;
+                    }
+                    Text {
+                        text: agent.global-dir;
+                        color: Theme.muted;
+                        font-size: 12px;
+                        overflow: elide;
+                    }
+                }
+                Text {
+                    text: agent.skills;
+                    color: Theme.text;
+                    font-size: 12px;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: agent.id;
+                    color: Theme.muted;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                    min-width: 110px;
+                    horizontal-alignment: right;
+                }
+            }
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: "SkillsMate";
+    // San Francisco, the macOS system font. Slint's default on macOS is Helvetica.
+    default-font-family: Theme.mac ? ".SF NS" : "";
+    default-font-size: 13px;
+    icon: @image-url("../../../packaging/icons/skillsmate-256.png");
+    preferred-width: 1100px;
+    preferred-height: 760px;
+    min-width: 760px;
+    min-height: 520px;
+    background: Theme.window;
+
+    in-out property <Page> page: Page.overview;
+    // "dark" or "light" overrides the system setting; anything else follows it.
+    in property <string> theme;
+    changed theme => {
+        if root.theme == "dark" {
+            Palette.color-scheme = ColorScheme.dark;
+        } else if root.theme == "light" {
+            Palette.color-scheme = ColorScheme.light;
+        }
+    }
+    callback page-changed(Page);
+
+    // Shared
+    in property <bool> loading;
+    callback refresh();
+    callback open-url(string);
+
+    // Overview
+    in property <Overview> overview;
+
+    // Installed
+    in property <[SkillRow]> installed;
+    in property <int> installed-total;
+    in property <string> installed-status;
+    in-out property <string> installed-filter;
+    callback filter-installed(string);
+
+    // Audits
+    in property <[AuditRow]> audits;
+    in property <bool> audits-checking;
+    in property <string> audits-status;
+    in property <int> audits-flagged;
+    callback check-audits();
+
+    // Discover
+    in property <[SearchRow]> search-results;
+    in property <bool> searching;
+    in property <string> search-status;
+    in-out property <string> search-query;
+    callback search(string);
+
+    // Official
+    in property <[OfficialRow]> official;
+    in property <bool> official-loading;
+    in property <string> official-status;
+    in-out property <string> official-filter;
+    callback filter-official(string);
+    callback reload-official();
+
+    // Topics
+    in property <[TopicRow]> topics;
+    in property <bool> topics-loading;
+    in property <string> topics-status;
+    in property <string> topic-slug;
+    in property <string> topic-title;
+    in property <string> topic-description;
+    in property <[TopicSkillRow]> topic-skills;
+    callback open-topic(string);
+    callback close-topic();
+    callback reload-topics();
+
+    // Agents
+    in property <[AgentRow]> agents;
+    in property <int> detected-agents;
+
+    // Health
+    in property <string> health-summary;
+    in property <string> health-problems;
+    in property <string> health-warnings;
+    in property <string> health-tips;
+    in property <string> health-startup;
+    in property <string> health-startup-note;
+    in property <[FindingRow]> findings;
+    in property <[UpdateRow]> updates;
+    in property <bool> updates-checking;
+    in property <string> updates-status;
+    in property <int> health-badge;
+    callback check-updates();
+    callback update-skill(string);
+    callback fix(int);
+    in property <int> broken-links;
+    callback fix-all-links();
+
+    // Detail
+    in property <Detail> detail;
+    in-out property <Page> detail-back: Page.installed;
+    callback open-skill(string);
+    callback remove-skill(string);
+    in property <bool> edit-open;
+    in-out property <string> edit-text;
+    in property <string> edit-error;
+    callback edit-start(string);
+    callback edit-save(string);
+    callback edit-cancel();
+
+    // Discover recommendations and installs
+    in property <[RecRow]> recs;
+    in property <bool> recs-loading;
+    in property <string> recs-status;
+    callback install(string, string);
+
+    // App version and updates
+    in property <string> app-version;
+    in property <string> app-update-status;
+    in property <string> app-update-url;
+    in property <bool> app-update-checking;
+    callback check-app-update();
+
+    // Confirmation dialog
+    in property <bool> dialog-open;
+    in property <string> dialog-title;
+    in property <string> dialog-message;
+    in property <string> dialog-confirm;
+    in property <bool> dialog-destructive;
+    callback dialog-accepted();
+    callback dialog-dismissed();
+
+    // Toast
+    in property <bool> toast-open;
+    in property <string> toast-text;
+    in property <bool> toast-busy;
+    in property <bool> toast-undo;
+    in property <bool> toast-error;
+    callback toast-undo-clicked();
+    callback toast-dismissed();
+
+    function open(key: string) {
+        if root.page != Page.detail {
+            root.detail-back = root.page;
+        }
+        root.page = Page.detail;
+        root.open-skill(key);
+    }
+
+    function go(p: Page) {
+        root.page = p;
+        root.page-changed(p);
+    }
+
+    HorizontalLayout {
+        // Sidebar
+        Rectangle {
+            width: 220px;
+            background: Theme.sidebar;
+            VerticalLayout {
+            VerticalLayout {
+                vertical-stretch: 0;
+                padding: 10px;
+                padding-top: Theme.titlebar + 14px;
+                spacing: 1px;
+                alignment: start;
+                HorizontalLayout {
+                    spacing: 10px;
+                    padding-left: 8px;
+                    Logo { width: 28px; height: 28px; }
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "SkillsMate";
+                            font-size: 15px;
+                            font-weight: 700;
+                            color: Theme.text;
+                        }
+                        Text {
+                            text: "for skills.sh";
+                            font-size: 11px;
+                            color: Theme.muted;
+                        }
+                    }
+                }
+                Rectangle { height: 18px; }
+                HorizontalLayout { padding-left: 10px; NavGroup { text: "Library"; } }
+                Rectangle { height: 4px; }
+                NavItem {
+                    label: "Overview";
+                    active: root.page == Page.overview;
+                    clicked => { root.go(Page.overview); }
+                }
+                NavItem {
+                    label: "Installed";
+                    badge: root.installed-total > 0 ? "\{root.installed-total}" : "";
+                    active: root.page == Page.installed;
+                    clicked => { root.go(Page.installed); }
+                }
+                NavItem {
+                    label: "Health";
+                    badge: root.health-badge > 0 ? "\{root.health-badge}" : "";
+                    active: root.page == Page.health;
+                    clicked => { root.go(Page.health); }
+                }
+                NavItem {
+                    label: "Audits";
+                    badge: root.audits-flagged > 0 ? "\{root.audits-flagged} flagged" : "";
+                    active: root.page == Page.audits;
+                    clicked => { root.go(Page.audits); }
+                }
+                Rectangle { height: 16px; }
+                HorizontalLayout { padding-left: 10px; NavGroup { text: "Explore"; } }
+                Rectangle { height: 4px; }
+                NavItem {
+                    label: "Discover";
+                    active: root.page == Page.discover;
+                    clicked => { root.go(Page.discover); }
+                }
+                NavItem {
+                    label: "Official";
+                    active: root.page == Page.official;
+                    clicked => { root.go(Page.official); }
+                }
+                NavItem {
+                    label: "Topics";
+                    active: root.page == Page.topics;
+                    clicked => { root.go(Page.topics); }
+                }
+                Rectangle { height: 16px; }
+                HorizontalLayout { padding-left: 10px; NavGroup { text: "Setup"; } }
+                Rectangle { height: 4px; }
+                NavItem {
+                    label: "Agents";
+                    badge: root.detected-agents > 0 ? "\{root.detected-agents}" : "";
+                    active: root.page == Page.agents;
+                    clicked => { root.go(Page.agents); }
+                }
+            }
+            Rectangle { vertical-stretch: 1; }
+            // Version and app updates.
+            VerticalLayout {
+                vertical-stretch: 0;
+                padding: 18px;
+                padding-top: 12px;
+                spacing: 6px;
+                Text {
+                    text: "SkillsMate " + root.app-version;
+                    font-size: 11px;
+                    color: Theme.muted;
+                }
+                if root.app-update-status != "": Text {
+                    text: root.app-update-status;
+                    font-size: 11px;
+                    color: Theme.muted;
+                    wrap: word-wrap;
+                }
+                HorizontalLayout {
+                    alignment: start;
+                    spacing: 6px;
+                    if root.app-update-url != "": Button {
+                        text: "Download";
+                        primary: true;
+                        clicked => { root.open-url(root.app-update-url); }
+                    }
+                    if root.app-update-url == "": Button {
+                        text: root.app-update-checking ? "Checking…" : "Check for updates";
+                        enabled: !root.app-update-checking;
+                        clicked => { root.check-app-update(); }
+                    }
+                }
+            }
+            }
+        }
+        Rectangle {
+            width: 1px;
+            background: Theme.separator;
+        }
+
+        // Content. Page padding already clears the macOS title bar.
+        VerticalLayout {
+        horizontal-stretch: 1;
+        if root.page == Page.overview: OverviewPage {
+            horizontal-stretch: 1;
+            data: root.overview;
+            loading: root.loading;
+            refresh => { root.refresh(); }
+            go-installed => { root.go(Page.installed); }
+            go-audits => { root.go(Page.audits); }
+        }
+        if root.page == Page.health: HealthPage {
+            horizontal-stretch: 1;
+            summary: root.health-summary;
+            problems: root.health-problems;
+            warnings: root.health-warnings;
+            tips: root.health-tips;
+            startup: root.health-startup;
+            startup-note: root.health-startup-note;
+            findings: root.findings;
+            updates: root.updates;
+            checking: root.updates-checking;
+            updates-status: root.updates-status;
+            loading: root.loading;
+            refresh => { root.refresh(); }
+            check-updates => { root.check-updates(); }
+            update-skill(key) => { root.update-skill(key); }
+            open-skill(key) => { root.open(key); }
+            fix(i) => { root.fix(i); }
+            broken-links: root.broken-links;
+            fix-all-links => { root.fix-all-links(); }
+        }
+        if root.page == Page.detail: DetailPage {
+            horizontal-stretch: 1;
+            d: root.detail;
+            checking: root.updates-checking;
+            back => { root.go(root.detail-back); }
+            update => { root.update-skill(root.detail.key); }
+            check => { root.check-updates(); }
+            remove => { root.remove-skill(root.detail.key); }
+            editing: root.edit-open;
+            edit-text <=> root.edit-text;
+            edit-error: root.edit-error;
+            edit => { root.edit-start(root.detail.key); }
+            save-edit(text) => { root.edit-save(text); }
+            cancel-edit => { root.edit-cancel(); }
+            open-url(url) => { root.open-url(url); }
+            open-skill(key) => { root.open(key); }
+            fix(i) => { root.fix(i); }
+        }
+        if root.page == Page.installed: InstalledPage {
+            horizontal-stretch: 1;
+            skills: root.installed;
+            loading: root.loading;
+            status: root.installed-status;
+            filter <=> root.installed-filter;
+            refresh => { root.refresh(); }
+            filter-edited(text) => { root.filter-installed(text); }
+            open-skill(key) => { root.open(key); }
+        }
+        if root.page == Page.audits: AuditsPage {
+            horizontal-stretch: 1;
+            rows: root.audits;
+            checking: root.audits-checking;
+            status: root.audits-status;
+            check => { root.check-audits(); }
+            open-url(url) => { root.open-url(url); }
+        }
+        if root.page == Page.discover: DiscoverPage {
+            horizontal-stretch: 1;
+            results: root.search-results;
+            searching: root.searching;
+            status: root.search-status;
+            query <=> root.search-query;
+            recs: root.recs;
+            recs-loading: root.recs-loading;
+            recs-status: root.recs-status;
+            query-edited(text) => { root.search(text); }
+            open-url(url) => { root.open-url(url); }
+            install(source, slug) => { root.install(source, slug); }
+        }
+        if root.page == Page.official: OfficialPage {
+            horizontal-stretch: 1;
+            rows: root.official;
+            loading: root.official-loading;
+            status: root.official-status;
+            filter <=> root.official-filter;
+            filter-edited(text) => { root.filter-official(text); }
+            reload => { root.reload-official(); }
+            open-url(url) => { root.open-url(url); }
+        }
+        if root.page == Page.topics: TopicsPage {
+            horizontal-stretch: 1;
+            topics: root.topics;
+            loading: root.topics-loading;
+            status: root.topics-status;
+            open-slug: root.topic-slug;
+            open-title: root.topic-title;
+            open-description: root.topic-description;
+            open-skills: root.topic-skills;
+            open-topic(slug) => { root.open-topic(slug); }
+            close-topic => { root.close-topic(); }
+            reload => { root.reload-topics(); }
+            open-url(url) => { root.open-url(url); }
+            install(source, slug) => { root.install(source, slug); }
+        }
+        if root.page == Page.agents: AgentsPage {
+            horizontal-stretch: 1;
+            agents: root.agents;
+            status: root.detected-agents + " of " + root.agents.length + " supported agents detected on this computer";
+        }
+        }
+    }
+
+    if root.toast-open: Toast {
+        width: min(560px, root.width - 260px);
+        x: 220px + (root.width - 220px - self.width) / 2;
+        y: root.height - self.height - 20px;
+        text: root.toast-text;
+        busy: root.toast-busy;
+        can-undo: root.toast-undo;
+        error: root.toast-error;
+        undo => { root.toast-undo-clicked(); }
+        dismissed => { root.toast-dismissed(); }
+    }
+
+    if root.dialog-open: ConfirmDialog {
+        width: root.width;
+        height: root.height;
+        title: root.dialog-title;
+        message: root.dialog-message;
+        confirm-label: root.dialog-confirm;
+        destructive: root.dialog-destructive;
+        accepted => { root.dialog-accepted(); }
+        dismissed => { root.dialog-dismissed(); }
+    }
+}

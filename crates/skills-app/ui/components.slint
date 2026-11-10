@@ -1,0 +1,426 @@
+import { Palette } from "std-widgets.slint";
+
+export global Theme {
+    out property <bool> mac: Platform.os == OperatingSystemType.macos;
+    out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+
+    out property <length> radius: 10px;
+    out property <length> gap: 12px;
+    out property <length> page-padding: 28px;
+    // Height of the title bar the content runs under on macOS (traffic lights).
+    out property <length> titlebar: mac ? 28px : 0px;
+
+    // Surfaces. Fixed values rather than the widget style's palette: the
+    // Cupertino style's control background is a mid grey in dark mode, which
+    // makes text on cards hard to read.
+    out property <brush> window: dark ? #1e1e1e : #f5f5f7;
+    out property <brush> sidebar: dark ? #282828 : #e9e9eb;
+    out property <brush> card: dark ? #2a2a2b : #ffffff;
+    out property <brush> card-border: dark ? #ffffff17 : #0000001c;
+    out property <brush> separator: dark ? #ffffff12 : #00000012;
+
+    // Text: primary, body copy, and secondary (labels, metadata).
+    out property <brush> text: dark ? #f5f5f7 : #1d1d1f;
+    out property <brush> body: dark ? #d8d8dc : #3a3a3c;
+    out property <brush> muted: dark ? #a1a1a6 : #6e6e73;
+
+    out property <brush> accent: dark ? #0a84ff : #007aff;
+    out property <brush> subtle-fill: dark ? #ffffff0c : #0000000a;
+    out property <brush> hover-fill: dark ? #ffffff14 : #00000010;
+    out property <brush> selected: dark ? #ffffff1f : #0000001a;
+
+    // Monochrome data ink, matching the logo. One hue for every ranked bar.
+    out property <brush> bar: dark ? #f5f5f7b8 : #1d1d1fb8;
+    out property <brush> bar-hover: text;
+    out property <brush> bar-track: dark ? #ffffff14 : #00000012;
+}
+
+export struct BarRow {
+    label: string,
+    value: string,
+    fraction: float,
+}
+
+export component Logo inherits Image {
+    source: @image-url("../../../packaging/icons/skillsmate-glyph.svg");
+    colorize: Theme.text;
+    image-fit: contain;
+    accessible-role: image;
+    accessible-label: "SkillsMate";
+}
+
+export component NavItem inherits Rectangle {
+    in property <string> label;
+    in property <string> badge;
+    in property <bool> active;
+    callback clicked;
+
+    height: 30px;
+    border-radius: 6px;
+    background: active ? Theme.selected : touch.has-hover ? Theme.subtle-fill : transparent;
+    accessible-role: button;
+    accessible-label: label;
+    accessible-action-default => { root.clicked(); }
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        Text {
+            text: root.label;
+            vertical-alignment: center;
+            color: Theme.text;
+            font-weight: root.active ? 600 : 400;
+            horizontal-stretch: 1;
+        }
+        if root.badge != "": Text {
+            text: root.badge;
+            vertical-alignment: center;
+            font-size: 12px;
+            color: Theme.muted;
+        }
+    }
+}
+
+export component Card inherits Rectangle {
+    border-radius: Theme.radius;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    background: Theme.card;
+}
+
+/// A titled card section with content below the title.
+export component Section inherits Card {
+    in property <string> title;
+    in property <string> note;
+    VerticalLayout {
+        padding: 18px;
+        spacing: 12px;
+        alignment: start;
+        HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: root.title;
+                font-size: 15px;
+                font-weight: 600;
+                color: Theme.text;
+                horizontal-stretch: 1;
+            }
+            if root.note != "": Text {
+                text: root.note;
+                font-size: 12px;
+                color: Theme.muted;
+            }
+        }
+        @children
+    }
+}
+
+/// Headline number with a label and a supporting line.
+export component StatTile inherits Card {
+    in property <string> label;
+    in property <string> value;
+    in property <string> note;
+    accessible-role: text;
+    accessible-label: label + ": " + value + ". " + note;
+    VerticalLayout {
+        padding: 16px;
+        padding-left: 18px;
+        spacing: 4px;
+        Text {
+            text: root.label;
+            font-size: 12px;
+            font-weight: 500;
+            color: Theme.muted;
+            overflow: elide;
+        }
+        Text {
+            text: root.value;
+            font-size: 28px;
+            font-weight: 600;
+            color: Theme.text;
+            overflow: elide;
+        }
+        Text {
+            text: root.note;
+            font-size: 12px;
+            color: Theme.muted;
+            overflow: elide;
+        }
+    }
+}
+
+/// Ranked horizontal bars: one hue, largest first, values printed beside the
+/// label (it is a short ranked list, so it doubles as its own table).
+export component BarList inherits VerticalLayout {
+    in property <[BarRow]> rows;
+    in property <string> empty-text;
+    spacing: 10px;
+
+    if root.rows.length == 0: Text {
+        text: root.empty-text;
+        color: Theme.muted;
+        wrap: word-wrap;
+    }
+    for row in root.rows: Rectangle {
+        accessible-role: text;
+        accessible-label: row.label + ": " + row.value;
+        height: inner.preferred-height;
+        hover := TouchArea {}
+        inner := VerticalLayout {
+            spacing: 5px;
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    text: row.label;
+                    color: Theme.text;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                }
+                Text {
+                    text: row.value;
+                    color: hover.has-hover ? Theme.text : Theme.muted;
+                    font-weight: hover.has-hover ? 600 : 400;
+                }
+            }
+            Rectangle {
+                height: 6px;
+                border-radius: 3px;
+                background: Theme.bar-track;
+                Rectangle {
+                    x: 0;
+                    width: max(6px, parent.width * clamp(row.fraction, 0, 1));
+                    height: parent.height;
+                    border-radius: 3px;
+                    background: hover.has-hover ? Theme.bar-hover : Theme.bar;
+                    animate width { duration: 250ms; easing: ease-out; }
+                }
+            }
+        }
+    }
+}
+
+export component PageHeader inherits HorizontalLayout {
+    in property <string> title;
+    in property <string> subtitle;
+    spacing: Theme.gap;
+    alignment: stretch;
+
+    VerticalLayout {
+        horizontal-stretch: 1;
+        spacing: 3px;
+        Text {
+            text: root.title;
+            font-size: 26px;
+            font-weight: 700;
+            color: Theme.text;
+        }
+        if root.subtitle != "": Text {
+            text: root.subtitle;
+            color: Theme.muted;
+            overflow: elide;
+        }
+    }
+    // Actions keep their natural height, centred on the title block.
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            spacing: 8px;
+            @children
+        }
+    }
+}
+
+export component EmptyState inherits VerticalLayout {
+    in property <string> title;
+    in property <string> message;
+    alignment: center;
+    spacing: 6px;
+    padding: 40px;
+
+    Text {
+        text: root.title;
+        font-size: 16px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        color: Theme.text;
+    }
+    Text {
+        text: root.message;
+        horizontal-alignment: center;
+        wrap: word-wrap;
+        color: Theme.muted;
+    }
+}
+
+export component StatusDot inherits Rectangle {
+    in property <bool> on;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background: on ? Theme.text : Theme.selected;
+}
+
+/// Round status marker. The label beside it always carries the meaning; the
+/// mark is a cue. Only problems get colour (status palette: warning #fab219,
+/// critical #d03b3b); everything else stays monochrome like the rest of the UI.
+/// kind: 0 = fine (tick), 1 = warning (!), 2 = failure (x), 3 = neutral (-),
+/// 4 = tip (i).
+export component StatusMark inherits Rectangle {
+    in property <int> kind;
+    width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    border-width: root.kind == 1 || root.kind == 2 ? 0 : 1.5px;
+    border-color: Theme.muted;
+    background: root.kind == 1 ? #fab219 : root.kind == 2 ? #d03b3b : transparent;
+    if root.kind == 0: Path {
+        width: 100%;
+        height: 100%;
+        viewbox-width: 18;
+        viewbox-height: 18;
+        commands: "M 5.5 9.2 L 8 11.6 L 12.6 6.8";
+        stroke: Theme.text;
+        stroke-width: 1.6px;
+        fill: transparent;
+    }
+    if root.kind == 1: Text {
+        text: "!";
+        font-size: 12px;
+        font-weight: 800;
+        color: #0b0b0b;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    if root.kind == 2: Path {
+        width: 100%;
+        height: 100%;
+        viewbox-width: 18;
+        viewbox-height: 18;
+        commands: "M 6.2 6.2 L 11.8 11.8 M 11.8 6.2 L 6.2 11.8";
+        stroke: #ffffff;
+        stroke-width: 1.8px;
+        fill: transparent;
+    }
+    if root.kind == 3: Rectangle {
+        width: 7px;
+        height: 1.6px;
+        background: Theme.muted;
+    }
+    if root.kind == 4: Text {
+        text: "i";
+        font-size: 11px;
+        font-weight: 700;
+        color: Theme.muted;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+/// A small pill label, e.g. "Installed".
+export component Pill inherits Rectangle {
+    in property <string> text;
+    height: 20px;
+    width: label.preferred-width + 14px;
+    border-radius: 10px;
+    background: Theme.hover-fill;
+    label := Text {
+        text: root.text;
+        font-size: 11px;
+        font-weight: 600;
+        color: Theme.text;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+    }
+}
+
+/// Group label in the sidebar.
+export component NavGroup inherits Text {
+    font-size: 11px;
+    font-weight: 600;
+    color: Theme.muted;
+}
+
+/// Rounded search/filter field with a magnifier and a clear button.
+export component SearchField inherits Rectangle {
+    in property <string> placeholder-text;
+    in-out property <string> text <=> input.text;
+    callback edited(string);
+
+    height: 30px;
+    border-radius: 7px;
+    background: Theme.card;
+    border-width: input.has-focus ? 2px : 1px;
+    border-color: input.has-focus ? Theme.accent : Theme.card-border;
+    forward-focus: input;
+    accessible-role: text-input;
+    accessible-label: root.placeholder-text;
+    accessible-value: root.text;
+
+    HorizontalLayout {
+        padding-left: 9px;
+        padding-right: 6px;
+        spacing: 6px;
+        Path {
+            width: 14px;
+            height: 14px;
+            y: (parent.height - self.height) / 2;
+            viewbox-width: 14;
+            viewbox-height: 14;
+            commands: "M 10.5 6 A 4.5 4.5 0 1 1 1.5 6 A 4.5 4.5 0 1 1 10.5 6 Z M 9.4 9.4 L 12.8 12.8";
+            stroke: Theme.muted;
+            stroke-width: 1.5px;
+            fill: transparent;
+        }
+        Rectangle {
+            horizontal-stretch: 1;
+            if input.text == "": Text {
+                width: 100%;
+                height: 100%;
+                text: root.placeholder-text;
+                color: Theme.muted;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            input := TextInput {
+                width: 100%;
+                height: 100%;
+                color: Theme.text;
+                vertical-alignment: center;
+                single-line: true;
+                selection-background-color: Theme.accent.with-alpha(0.35);
+                edited => { root.edited(self.text); }
+            }
+        }
+        if input.text != "": Rectangle {
+            width: 18px;
+            height: 18px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 9px;
+            background: clear.has-hover ? Theme.muted : Theme.muted.with-alpha(0.6);
+            accessible-role: button;
+            accessible-label: "Clear";
+            accessible-action-default => { input.text = ""; root.edited(""); }
+            clear := TouchArea {
+                clicked => {
+                    input.text = "";
+                    root.edited("");
+                    input.focus();
+                }
+            }
+            Path {
+                width: 100%;
+                height: 100%;
+                viewbox-width: 18;
+                viewbox-height: 18;
+                commands: "M 6.5 6.5 L 11.5 11.5 M 11.5 6.5 L 6.5 11.5";
+                stroke: Theme.card;
+                stroke-width: 1.6px;
+                fill: transparent;
+            }
+        }
+    }
+}

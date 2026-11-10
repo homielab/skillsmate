@@ -1,0 +1,26 @@
+[package]
+name = "skills-core"
+description = "Core skill management for SkillsMate: agent registry, lockfiles, SKILL.md parsing, skills.sh search"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml_ng.workspace = true
+indexmap.workspace = true
+reqwest.workspace = true
+dirs.workspace = true
+tempfile.workspace = true
+sha2.workspace = true
+similar.workspace = true
+pulldown-cmark.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+
+[lints]
+workspace = true

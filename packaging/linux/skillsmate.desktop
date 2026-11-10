@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=SkillsMate
+GenericName=Skills Manager
+Comment=Browse, install and manage skills.sh skills for your coding agents
+Exec=skillsmate
+Icon=skillsmate
+Terminal=false
+Categories=Development;Utility;
+Keywords=skills;agents;claude;codex;cursor;ai;
+StartupWMClass=skillsmate
