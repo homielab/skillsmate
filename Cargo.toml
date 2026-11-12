@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["crates/skills-core", "crates/skills-app"]
+exclude = ["third_party"]
 
 [workspace.package]
 version = "0.1.1"
@@ -42,3 +43,8 @@ unwrap_used = "warn"
 lto = "thin"
 codegen-units = 1
 strip = true
+
+# winit without the private macOS blur API the Mac App Store rejects
+# (see third_party/winit/README.SkillsMate.md).
+[patch.crates-io]
+winit = { path = "third_party/winit" }
