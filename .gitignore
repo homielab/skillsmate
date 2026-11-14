@@ -1,8 +1,9 @@
 /target
+/node_modules
+/dist
+/src-tauri/gen/schemas
 **/*.rs.bk
 .DS_Store
-/dist
-/.appimage-tools
 /fastlane/.env
 /fastlane/report.xml
 /fastlane/README.md

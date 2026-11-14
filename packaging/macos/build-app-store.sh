@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Builds dist/SkillsMate-<version>.pkg for the Mac App Store: a universal,
-# sandboxed app signed by Xcode's automatic signing with an App Store Connect
-# API key (no local certificates needed).
+# Builds target/app-store/SkillsMate-<version>-<build>.pkg for the Mac App
+# Store: a universal, sandboxed app signed by Xcode's automatic signing with an
+# App Store Connect API key (no local certificates needed).
 #
 # Usage: BUILD_NUMBER=<n> packaging/macos/build-app-store.sh
 #
@@ -24,22 +24,18 @@ cd "$ROOT"
 rm -r "$WORK" 2>/dev/null || true
 mkdir -p "$WORK"
 
-# Universal binary.
-for target in aarch64-apple-darwin x86_64-apple-darwin; do
-    cargo build --release --locked -p skills-app --features app-store --target "$target"
-done
-lipo -create -output "$WORK/skillsmate" \
-    target/aarch64-apple-darwin/release/skillsmate \
-    target/x86_64-apple-darwin/release/skillsmate
-
-BUNDLE_ID="$BUNDLE_ID" BUILD_NUMBER="$BUILD_NUMBER" \
-    packaging/macos/build-app.sh "$WORK/skillsmate"
+# Universal, unsigned .app with the sandbox feature and this build number.
+bun install --frozen-lockfile
+bunx tauri build --target universal-apple-darwin --bundles app --no-sign \
+    --features app-store \
+    --config "{\"bundle\":{\"macOS\":{\"bundleVersion\":\"${BUILD_NUMBER}\"}}}"
 
 # Sign ad hoc with the sandbox entitlements: the export step keeps them when it
 # re-signs for distribution.
 ARCHIVE="$WORK/SkillsMate.xcarchive"
 mkdir -p "$ARCHIVE/Products/Applications"
-mv "$ROOT/dist/SkillsMate.app" "$ARCHIVE/Products/Applications/"
+mv "$ROOT/target/universal-apple-darwin/release/bundle/macos/SkillsMate.app" \
+    "$ARCHIVE/Products/Applications/"
 APP="$ARCHIVE/Products/Applications/SkillsMate.app"
 codesign --force --sign - --options runtime \
     --entitlements packaging/macos/AppStore.entitlements "$APP"
@@ -88,7 +84,6 @@ xcodebuild -exportArchive \
     -authenticationKeyID "$ASC_KEY_ID" \
     -authenticationKeyIssuerID "$ASC_ISSUER_ID"
 
-mkdir -p "$ROOT/dist"
-PKG="$ROOT/dist/SkillsMate-${VERSION}-${BUILD_NUMBER}.pkg"
+PKG="$WORK/SkillsMate-${VERSION}-${BUILD_NUMBER}.pkg"
 mv "$WORK/export/SkillsMate.pkg" "$PKG"
 echo "Built $PKG"

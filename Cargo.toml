@@ -1,10 +1,9 @@
 [workspace]
 resolver = "2"
-members = ["crates/skills-core", "crates/skills-app"]
-exclude = ["third_party"]
+members = ["crates/skills-core", "src-tauri"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.92"
 license = "MIT"
@@ -13,7 +12,6 @@ homepage = "https://github.com/homielab/skillsmate"
 
 [workspace.dependencies]
 skills-core = { path = "crates/skills-core" }
-anyhow = "1"
 thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
@@ -26,12 +24,14 @@ tempfile = "3"
 sha2 = "0.11"
 similar = "3"
 pulldown-cmark = { version = "0.13", default-features = false }
-slint = "1.18"
-slint-build = "1.18"
+tauri = "2"
+tauri-build = "2"
+tauri-plugin-opener = "2"
 
 [workspace.lints.rust]
-# `deny`, not `forbid`: Slint-generated code locally allows unsafe. The core
-# crate still forbids it outright (see its lib.rs).
+# `deny`, not `forbid`: the sandboxed Mac App Store build needs two Objective-C
+# calls (src-tauri/src/home_access.rs). The core crate still forbids it
+# outright (see its lib.rs).
 unsafe_code = "deny"
 
 [workspace.lints.clippy]
@@ -43,8 +43,3 @@ unwrap_used = "warn"
 lto = "thin"
 codegen-units = 1
 strip = true
-
-# winit without the private macOS blur API the Mac App Store rejects
-# (see third_party/winit/README.SkillsMate.md).
-[patch.crates-io]
-winit = { path = "third_party/winit" }

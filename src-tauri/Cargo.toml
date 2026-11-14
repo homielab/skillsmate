@@ -1,0 +1,33 @@
+[package]
+name = "skillsmate"
+description = "SkillsMate: a fast desktop app for managing skills.sh skills"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+build = "build.rs"
+
+[dependencies]
+skills-core.workspace = true
+serde.workspace = true
+tokio.workspace = true
+tauri.workspace = true
+tauri-plugin-opener.workspace = true
+
+# Home folder access in the sandboxed Mac App Store build (`home_access.rs`).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.6", optional = true }
+objc2-foundation = { version = "0.3", optional = true, default-features = false, features = ["std", "NSData", "NSError", "NSString", "NSURL", "NSArray"] }
+objc2-app-kit = { version = "0.3", optional = true, default-features = false, features = ["std", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSWindow", "NSResponder", "NSApplication", "NSRunningApplication"] }
+
+[features]
+# Mac App Store build: sandboxed home folder access, no self-update check.
+app-store = ["dep:objc2", "dep:objc2-foundation", "dep:objc2-app-kit"]
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[lints]
+workspace = true

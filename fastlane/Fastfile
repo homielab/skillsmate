@@ -40,7 +40,7 @@ platform :mac do
         { "BUILD_NUMBER" => number.to_s, "ASC_KEY_PATH" => key_path },
         File.join(ROOT, "packaging/macos/build-app-store.sh")
       )
-      pkg = File.join(ROOT, "dist/SkillsMate-#{VERSION}-#{number}.pkg")
+      pkg = File.join(ROOT, "target/app-store/SkillsMate-#{VERSION}-#{number}.pkg")
     end
     upload_to_testflight(
       api_key: api_key,

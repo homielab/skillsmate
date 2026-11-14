@@ -4,27 +4,31 @@ Bug reports, fixes and features are welcome. For anything larger than a small fi
 
 ## Setup
 
-You need Rust 1.92 or newer ([rustup](https://rustup.rs)). On Linux, also install the windowing libraries:
+You need Rust 1.92 or newer ([rustup](https://rustup.rs)), [Bun](https://bun.sh), and Tauri's [system dependencies](https://tauri.app/start/prerequisites/). On Debian/Ubuntu:
 
 ```sh
-sudo apt install libfontconfig1-dev libxkbcommon-dev   # Debian/Ubuntu
+sudo apt install libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev librsvg2-dev
 ```
 
 Then:
 
 ```sh
-cargo run -p skills-app       # run the app
-cargo test --workspace        # run the tests
+bun install
+bunx tauri dev            # run the app, reloading on changes
+cargo test --workspace    # run the tests
 ```
+
+To test against a throwaway setup instead of your real skills, point `HOME` and `SKILLSMATE_DATA_DIR` at a temporary folder, and unset variables that move an agent's folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`).
 
 ## Project rules
 
 - `crates/skills-core` holds all skill logic. It has no UI dependencies, forbids `unsafe`, and every change comes with tests.
-- `crates/skills-app` only connects the Slint UI to the core. Filesystem and network work runs on the tokio runtime, never on the UI thread.
+- `src-tauri` exposes the core to the UI as Tauri commands and builds everything the UI shows. Filesystem and network work runs off the main thread.
+- `src` is the React frontend. It renders what the commands return and keeps view state only. `src/api.ts` mirrors the Rust types.
 - Paths, lockfile formats and naming must match the official [`skills` CLI](https://github.com/vercel-labs/skills). Check its source before changing that behavior.
 - Never overwrite a lockfile that failed to parse or has an unknown schema version.
-- Treat SKILL.md files and skills.sh data as untrusted: limit sizes, sanitize names and displayed text, and keep paths inside skill folders.
-- Back up before anything destructive (remove, update, fix), so Undo works.
+- Treat SKILL.md files and skills.sh data as untrusted: limit sizes, sanitize names and displayed text, keep paths inside skill folders, and render content as text.
+- Back up before anything destructive (remove, update, edit, fix), so Undo works.
 
 [AGENTS.md](AGENTS.md) has the same rules in more detail.
 
@@ -34,11 +38,10 @@ cargo test --workspace        # run the tests
 cargo fmt --all
 cargo clippy --all-targets -- -D warnings
 cargo test --workspace
+bun run build
 ```
 
-CI runs the same checks on Linux, macOS and Windows. For UI changes, add a screenshot to the pull request. `SKILLSMATE_SNAPSHOT=<dir> cargo run -p skills-app` saves every page as an image.
-
-To test against a throwaway setup instead of your real skills, point `HOME` and `SKILLSMATE_DATA_DIR` at a temporary folder.
+CI runs the same checks on Linux, macOS and Windows. For UI changes, add a screenshot to the pull request.
 
 ## Updating the agent list
 
@@ -52,9 +55,11 @@ python3 tools/gen_agents.py /tmp/skills/src/agents.ts "$(git -C /tmp/skills rev-
 
 ## Releasing (maintainers)
 
-1. Bump `version` in the root `Cargo.toml` and commit.
-2. Tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
-3. The Release workflow tests, builds the Linux `.deb` and AppImage and the macOS app, and publishes them with checksums.
+1. Bump `version` in the root `Cargo.toml` and in `package.json`, and commit.
+2. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`.
+3. The Release workflow tests, builds the Linux `.deb` and AppImage, the macOS `.dmg` and the Windows installer, and publishes them with checksums.
+
+To build the packages for your own platform: `bunx tauri build` (output in `target/release/bundle/`).
 
 ### Mac App Store
 
@@ -68,7 +73,7 @@ fastlane mac listing   # upload name, description, keywords, URLs and screenshot
 fastlane mac submit    # submit the latest uploaded build for review
 ```
 
-Store screenshots are 1440×900: `SKILLSMATE_SNAPSHOT_SIZE=1440x900 SKILLSMATE_SNAPSHOT=<dir> cargo run -p skills-app --features app-store`.
+Store screenshots are 1440×900 window captures.
 
 ## License
 

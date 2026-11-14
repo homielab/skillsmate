@@ -1,7 +1,8 @@
 name: Release
 
-# Push a tag like `v0.1.0` to build Linux and macOS packages and publish a GitHub release.
-# The tag must match `version` in the workspace Cargo.toml.
+# Push a tag like `v0.2.0` to build Linux, macOS and Windows packages and
+# publish a GitHub release. The tag must match `version` in the workspace
+# Cargo.toml.
 on:
   push:
     tags: ["v*"]
@@ -14,77 +15,67 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  linux:
-    # Build on the oldest supported Ubuntu: binaries only run on systems with a
-    # glibc at least as new as the build machine's.
-    runs-on: ubuntu-22.04
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Build on the oldest supported Ubuntu: binaries only run on systems
+          # with a glibc at least as new as the build machine's.
+          - name: linux
+            os: ubuntu-22.04
+            args: --bundles deb,appimage
+            files: |
+              target/release/bundle/deb/*.deb
+              target/release/bundle/appimage/*.AppImage
+          - name: macos
+            os: macos-latest
+            args: --target universal-apple-darwin --bundles dmg
+            files: target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          - name: windows
+            os: windows-latest
+            args: --bundles nsis
+            files: target/release/bundle/nsis/*.exe
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.name == 'macos' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
       - uses: Swatinem/rust-cache@v2
+      - uses: oven-sh/setup-bun@v2
 
-      - name: Install build dependencies
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libfuse2
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev librsvg2-dev patchelf libfuse2
 
       - name: Check tag matches Cargo version
         if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
         run: |
           version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)"
           test "v$version" = "${GITHUB_REF_NAME}" || {
             echo "Tag ${GITHUB_REF_NAME} does not match Cargo version $version" >&2; exit 1; }
 
-      - name: Test
-        run: cargo test --workspace --locked
-
-      - name: Build .deb
-        run: |
-          cargo install cargo-deb --locked
-          cargo deb -p skills-app --locked
-          mkdir -p dist
-          cp target/debian/*.deb dist/
-
-      - name: Build AppImage
-        run: packaging/linux/build-appimage.sh target/release/skillsmate
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux-packages
-          path: dist/*
-
-  macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-apple-darwin
-      - uses: Swatinem/rust-cache@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run build
 
       - name: Test
         run: cargo test --workspace --locked
 
-      - name: Build universal app
-        run: |
-          cargo build --release --locked -p skills-app --target aarch64-apple-darwin
-          cargo build --release --locked -p skills-app --target x86_64-apple-darwin
-          mkdir -p target/release
-          lipo -create -output target/release/skillsmate \
-            target/aarch64-apple-darwin/release/skillsmate \
-            target/x86_64-apple-darwin/release/skillsmate
-          packaging/macos/build-app.sh target/release/skillsmate
-          version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)"
-          ditto -c -k --keepParent dist/SkillsMate.app "dist/SkillsMate-${version}-macos-universal.zip"
-          rm -r dist/SkillsMate.app
+      - name: Build packages
+        run: bunx tauri build ${{ matrix.args }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: macos-packages
-          path: dist/*.zip
+          name: ${{ matrix.name }}-packages
+          path: ${{ matrix.files }}
 
   publish:
-    needs: [linux, macos]
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -93,11 +84,13 @@ jobs:
           merge-multiple: true
 
       - name: Checksums
-        run: cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS
+        run: cd dist && find . -type f -exec mv {} . \; && sha256sum SkillsMate* > SHA256SUMS && cat SHA256SUMS
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          files: |
+            dist/SkillsMate*
+            dist/SHA256SUMS
           generate_release_notes: true

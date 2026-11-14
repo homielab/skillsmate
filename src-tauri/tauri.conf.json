@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "SkillsMate",
+  "mainBinaryName": "skillsmate",
+  "identifier": "com.homielab.SkillsMate",
+  "build": {
+    "beforeDevCommand": "bun run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "bun run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "SkillsMate",
+        "width": 1180,
+        "height": 780,
+        "minWidth": 820,
+        "minHeight": 540,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "DeveloperTool",
+    "copyright": "Copyright © 2026 HomieLab.com",
+    "publisher": "HomieLab.com",
+    "shortDescription": "Manage skills.sh skills for your coding agents",
+    "longDescription": "A fast desktop app for the skills.sh ecosystem. Browse and search skills, see what is installed for each coding agent (Claude Code, Codex, Cursor and many more), and manage skills without the terminal.",
+    "icon": [
+      "../packaging/icons/skillsmate-32.png",
+      "../packaging/icons/skillsmate-128.png",
+      "../packaging/icons/skillsmate-256.png",
+      "../packaging/icons/skillsmate-512.png",
+      "../packaging/macos/AppIcon/AppIcon.icns",
+      "../packaging/icons/skillsmate.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "files": {
+        "Resources/Assets.car": "../packaging/macos/AppIcon/Assets.car"
+      }
+    },
+    "linux": {
+      "deb": {
+        "section": "devel"
+      }
+    }
+  }
+}
